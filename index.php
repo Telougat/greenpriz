@@ -1,8 +1,8 @@
 <!doctype html>
 <html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="https://unpkg.com/tailwindcss@^2/dist/tailwind.min.css" rel="stylesheet">
   <title>Projet Greenpriz</title>
 </head>
@@ -33,7 +33,7 @@
         </div>
   		</div>
   	</div>
-    <div class="mt-16 grid grid-cols-2 grid-rows-1 gap-x-16">
+    <div class="mt-24 grid grid-cols-2 grid-rows-1 gap-x-40">
       <div class="flex flex-col items-end">
         <div>
           <div>
@@ -44,8 +44,24 @@
           </div>
         </div>
       </div>
-      <div>
-        Bonjour
+      <div class="pr-16">
+
+        <!-- Table -->
+        <div class="grid grid-cols-4 border-t border-l border-black">
+
+          <!-- Table head (Not using standard <table> for more flexibility with the design.)-->
+          <div class="border-r border-b border-black pl-2"><p class="uppercase">Date</p></div>
+          <div class="border-r border-b border-black pl-2"><p class="uppercase">1er tableur</p></div>
+          <div class="border-r border-b border-black pl-2"><p class="uppercase">2éme tableur</p></div>
+          <div class="border-r border-b border-black pl-2"><p class="uppercase">Comparaison</p></div>
+
+          <!-- Repeatable table rows (Dynamic content) -->
+          <div class="border-r border-b border-black px-2 py-2"><p>****</p></div>
+          <div class="border-r border-b border-black px-2 text-center py-2"><p>****</p></div>
+          <div class="border-r border-b border-black px-2 text-center py-2"><p>****</p></div>
+          <div class="border-r border-b border-black px-2 text-right py-2"><p>****</p></div>
+
+        </div>
       </div>
     </div>
   </main>
