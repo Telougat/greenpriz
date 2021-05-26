@@ -13,6 +13,8 @@
                     unlink($file); // delete file
                 }
             }
+            header("Location: /");
+            exit();
         } catch (PDOException $e) {
             print "Erreur !: " . $e->getMessage() . "<br/>";
             die();
