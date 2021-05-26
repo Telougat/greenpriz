@@ -19,6 +19,8 @@
             print "Erreur !: " . $e->getMessage() . "<br/>";
             die();
         }
+    } elseif (isset($_POST["pass"]) AND $_POST["pass"] != $ADMIN_PASS) {
+        $error = true;
     }
 ?>
 <!doctype html>
@@ -35,6 +37,11 @@
     }
 </style>
 <body>
+    <?php if (isset($error)) : ?>
+    <script>
+        window.alert("Mot de passe faux");
+    </script>
+    <?php endif; ?>
     <form method="post" class="flex flex-col items-center justify-center h-screen">
         <div class="space-y-6 bg-green p-6 rounded-xl">
             <div class="flex items-center space-x-2">
