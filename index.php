@@ -49,7 +49,7 @@
         }
     }
 
-    $target_dir = "csv/"; /* Folder to store the file */
+    $target_dir = "./csv/"; /* Folder to store the file */
 
     $target_first_file = $target_dir . basename($_FILES["firstTab"]["name"]); /* Save the path with correct filename */
     $target_second_file = $target_dir . basename($_FILES["secondTab"]["name"]);
