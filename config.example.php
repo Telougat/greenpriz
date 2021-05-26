@@ -4,3 +4,5 @@
     $DB_HOST = "";
     $DB_NAME = "";
 
+    $ADMIN_PASS = "secret";
+
