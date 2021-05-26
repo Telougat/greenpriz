@@ -1,22 +1,52 @@
 <?php
-  if (isset($_FILES["firstTab"]) AND isset($_FILES["secondTab"])) {
+    require("config.php");
+
+    try {
+        $db = new PDO('mysql:host=' . $DB_HOST . ';dbname=' . $DB_NAME, $DB_USER, $DB_PASS);
+    } catch (PDOException $e) {
+        print "Erreur !: " . $e->getMessage() . "<br/>";
+        die();
+    }
+
+  if (isset($_FILES["firstTab"]) AND $_FILES["firstTab"]["size"] != 0 AND isset($_FILES["secondTab"]) AND $_FILES["secondTab"]["size"] != 0) {
 
     function uploadFile($file_path_to_save, $file_temp_name, $formatAccepted) { /* Function to upload files */
-      $file_type = strtolower(pathinfo($file_path_to_save,PATHINFO_EXTENSION)); /* Get the file format */
+          $file_type = strtolower(pathinfo($file_path_to_save,PATHINFO_EXTENSION)); /* Get the file format */
 
-      if ($file_type === $formatAccepted) { /* Check if file type is .csv */
-        if (!file_exists($file_path_to_save)) { /* Check if another file exist with the same name */
-          if (move_uploaded_file($file_temp_name, $file_path_to_save)) { /* Save the file and check if it's success */
-            return true;
+          if ($file_type === $formatAccepted) { /* Check if file type is .csv */
+              if (!file_exists($file_path_to_save)) { /* Check if another file exist with the same name */
+                  if (move_uploaded_file($file_temp_name, $file_path_to_save)) { /* Save the file and check if it's success */
+                      return true;
+                  } else {
+                      return "Erreur lors de l'enregistrement des fichiers.";
+                  }
+              } else {
+                  return "Un fichier possèdant le même nom existe déjà sur le serveur !";
+              }
           } else {
-            return "Erreur lors de l'enregistrement des fichiers.";
+              return "Vous n'avez pas le droit d'upload un fichier avec un format différent de .csv.";
           }
+    }
+
+    function getTotalKWH($target_file, $beginRow, $columnMin, $columnMax) {
+        $csv = fopen($target_file, "r");
+        if ($csv != false) {
+            $data = fgetcsv($csv, 400, ";");
+            $row = 0;
+            $total = 0;
+            while ($data != false) {
+                $row++;
+                if ($row > $beginRow) {
+                    for ($i=$columnMin;$i<=$columnMax;$i++) {
+                        $total += floatval(str_replace(",", ".", $data[$i]));
+                    }
+                }
+                $data = fgetcsv($csv, 400, ";");
+            }
+            return $total;
         } else {
-          return "Un fichier possèdant le même nom existe déjà sur le serveur !";
+            return false;
         }
-      } else {
-        return "Vous n'avez pas le droit d'upload un fichier avec un format différent de .csv.";
-      }
     }
 
     $target_dir = "csv/"; /* Folder to store the file */
@@ -32,6 +62,7 @@
     if (gettype($first_file_result) == "boolean" AND $first_file_result === true) {
         $second_file_result = uploadFile($target_second_file, $second_tmp_name, "csv");
         if (gettype($second_file_result) == "boolean" AND $second_file_result === true) { /* All files are upload successfully */
+            $upload = true;
             $upload_message = "Les fichiers ont bien étaient uploadés";
         } else {
             unlink($target_first_file);
@@ -41,17 +72,30 @@
         $upload_message = $first_file_result;
     }
 
-    /*if ($upload_ok) {
-      $handle = fopen($target_file, "r");
-      if ($handle != false) {
-        $data = fgetcsv($handle, 400, ",");
-        while ($data != false) {
-          var_dump($data);
-          $data = fgetcsv($handle, 400, ",");
+    if ($upload) {
+        $first_tab_total_value = getTotalKWH($target_first_file, 18, 3, 6);
+        $second_tab_total_value = getTotalKWH($target_second_file, 18, 3, 6);
+        if ($first_tab_total_value == false OR $second_tab_total_value == false) {
+            $csv_error = true;
+        } else {
+            /* Save the results into a database */
+            $saveResults = $db->prepare("INSERT INTO comparaisons (firstTab, secondTab, firstTabTarget, secondTabTarget) VALUES (:firstTab, :secondTab, :firstTabTarget, :secondTabTarget)");
+            $saveResults->bindParam(":firstTab", $first_tab_total_value);
+            $saveResults->bindParam(":secondTab", $second_tab_total_value);
+            $saveResults->bindParam(":firstTabTarget", $target_first_file);
+            $saveResults->bindParam(":secondTabTarget", $target_second_file);
+            $saveResults->execute();
         }
-      }
-    }*/
+    }
+  } elseif (isset($_FILES["firstTab"]) OR isset($_FILES["secondTab"])) {
+      $upload_message = "Veuillez uploader deux tableurs.";
+      $db = null;
   }
+
+    /* Get all results save in the database */
+    $request = $db->prepare('SELECT * FROM comparaisons');
+    $request->execute();
+    $results = $request->fetchAll();
 ?>
 <!DOCTYPE html>
 <html lang="fr">
@@ -87,8 +131,13 @@
       </div>
     </div>
   <?php endif; ?>
-  <header class="bg-green py-6 border-b border-black">
-  	<h1 class="text-center text-5xl">Projet GreenPriz</h1>
+  <header class="bg-green py-6 border-b border-black lg:flex lg:items-center">
+      <div class="hidden lg:flex pl-6 space-x-6">
+          <img class="h-28 xl:h-32" src="iut_chartres.jpg" alt="IUT de chartres" title="IUT de Chartres"/>
+          <img class="h-28 xl:h-32" src="meedd_chartres.jpg" alt="MEEDD Chartres" title="MEEDD Chartres"/>
+          <img class="h-28 xl:h-32" src="universite_orleans.png" alt="Université d'Orléans" title="Université d'Orléans"/>
+      </div>
+      <h1 class="text-center text-5xl lg:ml-12">Projet GreenPriz</h1>
   </header>
   <main>
   	<form method="post" enctype="multipart/form-data">
@@ -104,10 +153,10 @@
                         <span>Télécharger</span>
                     </label>
                 </div>
-                <?php if (isset($_FILES["firstTab"])) : ?>
+                <?php if (isset($upload) AND $upload AND !isset($csv_error)) : ?>
                     <div class="mt-12">
                         <p>Résultat de la consommation :</p>
-                        <p class="pt-2 pb-4 px-6 border border-black inline-block mt-1 text-3xl bg-gray-400 rounded-xl">**** <span class="font-bold">kWh</span></p>
+                        <p class="pt-2 pb-4 px-6 border border-black inline-block mt-1 text-3xl bg-gray-400 rounded-xl"><?php echo $first_tab_total_value; ?> <span class="font-bold">kWh</span></p>
                     </div>
                 <?php endif; ?>
             </div>
@@ -122,10 +171,10 @@
                         <span>Télécharger</span>
                     </label>
                 </div>
-                <?php if (isset($_FILES["secondTab"])) : ?>
+                <?php if (isset($upload) AND $upload AND !isset($csv_error)) : ?>
                     <div class="mt-12">
                         <p>Résultat de la consommation :</p>
-                        <p class="pt-2 pb-4 px-6 border border-black inline-block mt-1 text-3xl bg-gray-400 rounded-xl">**** <span class="font-bold">kWh</span></p>
+                        <p class="pt-2 pb-4 px-6 border border-black inline-block mt-1 text-3xl bg-gray-400 rounded-xl"><?php echo $second_tab_total_value; ?> <span class="font-bold">kWh</span></p>
                     </div>
                 <?php endif; ?>
             </div>
@@ -133,16 +182,18 @@
         <input class="mx-4 appearance-none mt-8 rounded-lg px-4 py-1 border border-black bg-white cursor-pointer hover:bg-black hover:text-white lg:mx-16" type="submit" value="Comparer">
   	</form>
     <div class="mt-12 lg:mt-24 lg:grid grid-cols-2 grid-rows-1 lg:px-16 xl:gap-x-40">
-      <div class="flex flex-col items-center lg:items-start xl:items-end">
-        <div>
-          <div>
-            <p class="inline-block">Energie économisée :</p>
+        <?php if (isset($upload) AND $upload AND !isset($csv_error)) : ?>
+          <div class="flex flex-col items-center lg:items-start xl:items-end">
+            <div>
+              <div>
+                <p class="inline-block">Energie économisée :</p>
+              </div>
+              <div class="mt-4">
+                <p class="pt-5 pb-4 px-8 bg-green border border-yellow-400 rounded-tl-xl rounded-br-xl text-5xl inline-block"><?php echo $first_tab_total_value-$second_tab_total_value; ?> <span>kWh</span></p>
+              </div>
+            </div>
           </div>
-          <div class="mt-4">
-            <p class="pt-5 pb-4 px-8 bg-green border border-yellow-400 rounded-tl-xl rounded-br-xl text-5xl inline-block">***** kWh</p>
-          </div>
-        </div>
-      </div>
+        <?php endif; ?>
       <div class="rotate-table px-4 mt-12 lg:mt-0 lg:px-0">
 
         <!-- Table -->
@@ -155,10 +206,12 @@
           <div class="border-r border-b border-black pl-2"><p class="uppercase lg:text-sm xl:text-base">Comparaison</p></div>
 
           <!-- Repeatable table rows (Dynamic content) -->
-          <div class="border-r border-b border-black px-2 py-2 lg:text-sm xl:text-base"><p>****</p></div>
-          <div class="border-r border-b border-black px-2 text-center py-2 lg:text-sm xl:text-base"><p>****</p></div>
-          <div class="border-r border-b border-black px-2 text-center py-2 lg:text-sm xl:text-base"><p>****</p></div>
-          <div class="border-r border-b border-black px-2 text-right py-2 lg:text-sm xl:text-base"><p>****</p></div>
+          <?php foreach ($results as $result) : ?>
+              <div class="border-r border-b border-black px-2 py-2 lg:text-sm xl:text-base"><p><?php echo $result['Date']; ?></p></div>
+              <div class="border-r border-b border-black px-2 text-center py-2 lg:text-sm xl:text-base"><p><?php echo $result['firstTab']; ?></p></div>
+              <div class="border-r border-b border-black px-2 text-center py-2 lg:text-sm xl:text-base"><p><?php echo $result['secondTab']; ?></p></div>
+              <div class="border-r border-b border-black px-2 text-right py-2 lg:text-sm xl:text-base"><p><?php echo $result['firstTab']-$result['secondTab']; ?></p></div>
+          <?php endforeach; ?>
 
         </div>
       </div>
